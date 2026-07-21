@@ -76,6 +76,18 @@ body {
   opacity: 0.6;
   cursor: default;
 }
+.btn.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.65rem 0.9rem;
+  font-weight: 500;
+}
+.btn.google .g-icon {
+  display: inline-flex;
+}
 
 .link {
   background: none;

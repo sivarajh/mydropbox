@@ -14,7 +14,7 @@ directly from the browser. Each user's data is isolated by Postgres
 
 ## Features
 
-- ✅ Email/password **sign up & sign in**
+- ✅ **Sign in with Google** (OAuth via Supabase)
 - ✅ **Upload / download / delete** files (drag-and-drop or picker, multi-file)
 - ✅ **Folders** with nesting, breadcrumbs, rename, and recursive delete
 - ✅ **Share links** — public, token-based, expiring download links
@@ -47,10 +47,23 @@ In the dashboard: **Project Settings → API**, copy:
 > These are public, browser-safe values. Your data is protected by the
 > Row-Level Security policies from step 2 — never use the `service_role` key here.
 
-### 4. (Optional) Turn off email confirmation for easy testing
+### 4. Enable Google sign-in
 
-**Authentication → Sign In / Providers → Email**: disable "Confirm email" if you
-want accounts to work instantly without an inbox round-trip.
+Sign-in uses Google OAuth, which needs a Google OAuth client wired into Supabase:
+
+1. **Create a Google OAuth client** — in the
+   [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+   **Create credentials → OAuth client ID → Web application**.
+   - Under **Authorized redirect URIs**, add the callback URL Supabase shows you
+     in the next step. It looks like:
+     `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   - Copy the generated **Client ID** and **Client secret**.
+2. **Turn it on in Supabase** — dashboard → **Authentication → Sign In / Providers
+   → Google**: enable it and paste the Client ID and Client secret. Supabase
+   displays the exact callback URL to paste back into Google (step 1).
+3. **Allow your app URLs** — **Authentication → URL Configuration**, add both:
+   - `http://localhost:5173/mydropbox/` (local dev)
+   - `https://<your-username>.github.io/mydropbox/` (deployed)
 
 ---
 
@@ -96,7 +109,7 @@ So auth redirects behave, add your Pages URL under
 
 | Concern | Implementation |
 |---------|----------------|
-| Auth | `supabase.auth` (email/password), session tracked in `AuthContext` |
+| Auth | `supabase.auth` Google OAuth, session tracked in `AuthContext` |
 | File blobs | Supabase Storage, private `files` bucket, paths namespaced by user id |
 | Metadata | `folders` and `files` Postgres tables, filtered by `auth.uid()` via RLS |
 | Downloads | Short-lived **signed URLs** generated on demand for the owner |

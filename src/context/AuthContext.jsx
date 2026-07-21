@@ -24,9 +24,16 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
-    signIn: (email, password) =>
-      supabase.auth.signInWithPassword({ email, password }),
-    signUp: (email, password) => supabase.auth.signUp({ email, password }),
+    // Google OAuth. After the Google consent screen, Supabase redirects the
+    // browser back to this app (redirectTo must be an allowed URL in the
+    // Supabase Auth settings). BASE_URL keeps it correct on GitHub Pages.
+    signInWithGoogle: () =>
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        },
+      }),
     signOut: () => supabase.auth.signOut(),
   }
 
