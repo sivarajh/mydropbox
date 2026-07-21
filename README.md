@@ -5,12 +5,16 @@ that runs entirely on **free** infrastructure:
 
 - **Frontend:** React + Vite, a fully static site hosted on **GitHub Pages**
 - **Deploy:** **GitHub Actions** builds and publishes on every push to `main`
-- **Backend:** **Supabase** free tier — Auth, Postgres, and Storage (no server code to run)
+- **Auth + metadata:** **Supabase** free tier — Google login + Postgres (no server code)
+- **File storage:** **your personal Google Drive**, via a free **Google Apps Script** proxy
 
-Because GitHub Pages can only serve static files, all the "backend" work
-(authentication, the file database, and blob storage) is handled by Supabase
-directly from the browser. Each user's data is isolated by Postgres
-**Row-Level Security**, so files stay private per account.
+Because GitHub Pages can only serve static files, authentication and the file
+*database* are handled by Supabase directly from the browser, and each user's
+metadata is isolated by Postgres **Row-Level Security**. The file *bytes* live
+in your own Google Drive: a small Apps Script Web App (which runs as you) is the
+"proxy API" that reads and writes Drive on the frontend's behalf — so no Drive
+credentials ever touch the browser. See
+[`google-apps-script/`](google-apps-script/README.md).
 
 ## Features
 
@@ -18,24 +22,26 @@ directly from the browser. Each user's data is isolated by Postgres
 - ✅ **Upload / download / delete** files (drag-and-drop or picker, multi-file)
 - ✅ **Folders** with nesting, breadcrumbs, rename, and recursive delete
 - ✅ **Share links** — public, token-based, expiring download links
-- ✅ Per-user isolation enforced in the database, not just the UI
+- ✅ Files stored in **your** Google Drive; metadata isolated per user in the DB
 
 ---
 
-## One-time setup (~5 minutes)
+## One-time setup (~10 minutes)
 
-You only need a free Supabase account. No credit card, no server to run.
+You need a free Supabase account and a Google account (for the Drive proxy). No
+credit card, no server to run.
 
 ### 1. Create a Supabase project
 
 1. Go to [supabase.com](https://supabase.com) and create a project (free tier).
 2. Wait for it to finish provisioning.
 
-### 2. Create the database + storage
+### 2. Create the database
 
 1. In the Supabase dashboard, open **SQL Editor → New query**.
 2. Paste the entire contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**.
-   This creates the tables, security policies, and the private `files` storage bucket.
+   This creates the metadata tables and their Row-Level Security policies.
+   (File bytes are not stored here — they go to your Google Drive, step 5.)
 
 ### 3. Grab your API credentials
 
@@ -65,13 +71,19 @@ Sign-in uses Google OAuth, which needs a Google OAuth client wired into Supabase
    - `http://localhost:5173/mydropbox/` (local dev)
    - `https://<your-username>.github.io/mydropbox/` (deployed)
 
+### 5. Deploy the Google Drive proxy
+
+Files are stored in your personal Google Drive through a free Google Apps Script
+Web App. Follow [`google-apps-script/README.md`](google-apps-script/README.md) —
+it takes ~5 minutes and gives you a `VITE_PROXY_URL` (a `…/exec` URL).
+
 ---
 
 ## Run locally
 
 ```bash
 npm install
-cp .env.example .env      # then paste your two values into .env
+cp .env.example .env      # then paste your three values into .env
 npm run dev
 ```
 
@@ -84,6 +96,7 @@ Open the printed `http://localhost:5173/mydropbox/` URL.
 1. **Add repo secrets** — GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_PROXY_URL`
 2. **Enable Pages** — **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. **Merge to `main`.** The [deploy workflow](.github/workflows/deploy.yml) builds
    the app and publishes it. Your site goes live at:
@@ -110,32 +123,38 @@ So auth redirects behave, add your Pages URL under
 | Concern | Implementation |
 |---------|----------------|
 | Auth | `supabase.auth` Google OAuth, session tracked in `AuthContext` |
-| File blobs | Supabase Storage, private `files` bucket, paths namespaced by user id |
-| Metadata | `folders` and `files` Postgres tables, filtered by `auth.uid()` via RLS |
-| Downloads | Short-lived **signed URLs** generated on demand for the owner |
-| Sharing | Owner pre-generates a 30-day signed URL, stored in a public `shares` row keyed by an unguessable token; the `/share/:token` page serves it — no server needed |
+| File bytes | **Your Google Drive**, via the Apps Script proxy (`google-apps-script/Code.gs`) |
+| Metadata | `folders` and `files` Postgres tables, filtered by `auth.uid()` via RLS; each file row stores its Drive `drive_id` |
+| Uploads/Downloads | Frontend sends/receives base64 through the proxy, which verifies the Supabase login token before touching Drive |
+| Sharing | A public `shares` row maps an unguessable token to a Drive id; the `/share/:token` page asks the proxy for the bytes, which validates the token first |
 | SPA routing on Pages | `404.html` stashes the deep link and bounces to `index.html`, which restores it |
 
 ### Project layout
 
 ```
 src/
-  lib/supabase.js   Supabase client + bucket name
-  lib/api.js        All data operations (folders, files, shares)
+  lib/supabase.js   Supabase client
+  lib/proxy.js      Google Drive proxy client (upload/download/delete)
+  lib/api.js        Data operations (folders, files, shares)
   lib/format.js     Byte + icon helpers
   context/          Auth provider
   pages/            Login, Dashboard, SharedFile, NotConfigured
   components/       Breadcrumbs, ShareModal
-supabase/schema.sql Database + storage setup (run once)
-.github/workflows/  GitHub Pages deploy
+supabase/schema.sql   Database metadata + RLS (run once)
+google-apps-script/   Google Drive proxy (deploy as a Web App)
+.github/workflows/    GitHub Pages deploy
 ```
 
 ## Notes & limits (free-tier reality)
 
-- Free Supabase Storage is **1 GB**, database **500 MB** — plenty for a demo.
-- Share links use a pre-signed URL valid for 30 days. Deleting the share row
-  hides the link in the app, but the underlying signed URL remains technically
-  valid until it expires — fine for an MVP, worth hardening (via a Supabase Edge
-  Function that mints URLs on demand) for real production use.
-- Uploads go directly from the browser to Supabase; there is no virus scanning
-  or file-type restriction out of the box.
+- Storage capacity is whatever your Google Drive has; the Supabase free
+  database (500 MB) only holds lightweight metadata.
+- The Apps Script proxy moves file bytes as base64, so it suits
+  **small-to-medium files** (tens of MB), not multi-GB uploads. See the
+  [proxy notes](google-apps-script/README.md#limits--caveats-free-tier-reality).
+- All users' files land in **one** Drive folder (`myDropbox`) that you own.
+  Per-user privacy is enforced at the metadata layer (RLS), so users only ever
+  see their own files in the app.
+- Share links stay valid for 30 days. Deleting the share row disables the link
+  immediately, since the proxy re-checks the token in Supabase on every download.
+- Uploads have no virus scanning or file-type restriction out of the box.

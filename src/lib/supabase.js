@@ -16,6 +16,3 @@ if (!isConfigured) {
 }
 
 export const supabase = createClient(url || 'http://localhost', anonKey || 'public-anon-key')
-
-// Name of the private Storage bucket that holds all uploaded file blobs.
-export const BUCKET = 'files'

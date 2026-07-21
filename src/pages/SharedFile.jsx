@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getShare } from '../lib/api'
+import { proxySharedDownload, saveBlob } from '../lib/proxy'
 import { formatBytes, fileIcon } from '../lib/format'
 
 export default function SharedFile() {
   const { token } = useParams()
   const [share, setShare] = useState(null)
   const [state, setState] = useState('loading') // loading | ok | missing | expired
+  const [downloading, setDownloading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     getShare(token)
@@ -18,6 +21,19 @@ export default function SharedFile() {
       })
       .catch(() => setState('missing'))
   }, [token])
+
+  async function handleDownload() {
+    setError('')
+    setDownloading(true)
+    try {
+      const { blob, name } = await proxySharedDownload(token)
+      saveBlob(blob, share.file_name || name)
+    } catch (e) {
+      setError(`Download failed: ${e.message}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     <div className="auth-wrap">
@@ -50,9 +66,14 @@ export default function SharedFile() {
                 <div className="muted small">{formatBytes(share.size)}</div>
               </div>
             </div>
-            <a className="btn primary block" href={share.signed_url}>
-              Download
-            </a>
+            {error && <div className="alert error">{error}</div>}
+            <button
+              className="btn primary block"
+              onClick={handleDownload}
+              disabled={downloading}
+            >
+              {downloading ? 'Preparing download…' : 'Download'}
+            </button>
           </>
         )}
 

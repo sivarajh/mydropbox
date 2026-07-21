@@ -10,8 +10,8 @@ import {
   uploadFile,
   renameFile,
   deleteFile,
-  getDownloadUrl,
 } from '../lib/api'
+import { proxyDownload, saveBlob, proxyConfigured } from '../lib/proxy'
 import { formatBytes, fileIcon } from '../lib/format'
 import Breadcrumbs from '../components/Breadcrumbs'
 import ShareModal from '../components/ShareModal'
@@ -108,12 +108,18 @@ export default function Dashboard() {
     load()
   }
 
+  const [downloadingId, setDownloadingId] = useState(null)
+
   async function handleDownload(file) {
+    setError('')
+    setDownloadingId(file.id)
     try {
-      const url = await getDownloadUrl(file)
-      window.location.href = url
+      const { blob, name } = await proxyDownload(file.drive_id)
+      saveBlob(blob, file.name || name)
     } catch (e) {
-      setError(e.message)
+      setError(`Download failed: ${e.message}`)
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -174,6 +180,12 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {!proxyConfigured && (
+          <div className="alert error">
+            The Google Drive proxy is not configured (VITE_PROXY_URL is missing),
+            so uploads and downloads won’t work. See google-apps-script/README.md.
+          </div>
+        )}
         {error && <div className="alert error">{error}</div>}
         {uploading > 0 && (
           <div className="alert notice">
@@ -233,8 +245,12 @@ export default function Dashboard() {
                   <button className="link" onClick={() => setSharing(file)}>
                     Share
                   </button>
-                  <button className="link" onClick={() => handleDownload(file)}>
-                    Download
+                  <button
+                    className="link"
+                    disabled={downloadingId === file.id}
+                    onClick={() => handleDownload(file)}
+                  >
+                    {downloadingId === file.id ? 'Downloading…' : 'Download'}
                   </button>
                   <button className="link" onClick={() => handleRenameFile(file)}>
                     Rename

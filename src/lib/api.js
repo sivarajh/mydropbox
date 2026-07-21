@@ -1,8 +1,8 @@
-import { supabase, BUCKET } from './supabase'
+import { supabase } from './supabase'
+import { proxyUpload, proxyDelete } from './proxy'
 
-// How long share links and download links stay valid (seconds).
+// How long a share link stays valid (seconds).
 const SHARE_TTL = 60 * 60 * 24 * 30 // 30 days
-const DOWNLOAD_TTL = 60 // 1 minute — just long enough to start the download
 
 // ---------------------------------------------------------------------------
 // Listing
@@ -66,45 +66,39 @@ export async function renameFolder(id, name) {
 }
 
 // Deletes a folder and everything under it. The DB cascades child folders and
-// file rows, but the actual Storage blobs must be removed explicitly first.
+// file rows, but the actual Drive files must be removed explicitly first.
 export async function deleteFolder(folderId) {
-  const paths = await collectStoragePaths(folderId)
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+  const driveIds = await collectDriveIds(folderId)
+  await proxyDelete(driveIds)
   const { error } = await supabase.from('folders').delete().eq('id', folderId)
   if (error) throw error
 }
 
-async function collectStoragePaths(folderId) {
-  const paths = []
+async function collectDriveIds(folderId) {
+  const ids = []
   const { data: files } = await supabase
     .from('files')
-    .select('storage_path')
+    .select('drive_id')
     .eq('folder_id', folderId)
-  ;(files ?? []).forEach((f) => paths.push(f.storage_path))
+  ;(files ?? []).forEach((f) => f.drive_id && ids.push(f.drive_id))
 
   const { data: subfolders } = await supabase
     .from('folders')
     .select('id')
     .eq('parent_id', folderId)
   for (const sub of subfolders ?? []) {
-    paths.push(...(await collectStoragePaths(sub.id)))
+    ids.push(...(await collectDriveIds(sub.id)))
   }
-  return paths
+  return ids
 }
 
 // ---------------------------------------------------------------------------
 // Files
 // ---------------------------------------------------------------------------
 
-export async function uploadFile(file, folderId, ownerId, onProgress) {
-  // Store under "<uid>/<uuid>-<name>" so paths are unique and RLS-scoped.
-  const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-  const path = `${ownerId}/${crypto.randomUUID()}-${safeName}`
-
-  const { error: upErr } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { cacheControl: '3600', upsert: false })
-  if (upErr) throw upErr
+export async function uploadFile(file, folderId, ownerId) {
+  // Push the bytes to Drive via the proxy, then record the metadata.
+  const { id: driveId, size } = await proxyUpload(file)
 
   const { data, error } = await supabase
     .from('files')
@@ -112,19 +106,18 @@ export async function uploadFile(file, folderId, ownerId, onProgress) {
       name: file.name,
       folder_id: folderId ?? null,
       owner_id: ownerId,
-      storage_path: path,
-      size: file.size,
+      drive_id: driveId,
+      size: size ?? file.size,
       mime_type: file.type || null,
     })
     .select()
     .single()
 
   if (error) {
-    // Roll back the orphaned blob if the metadata insert fails.
-    await supabase.storage.from(BUCKET).remove([path])
+    // Roll back the orphaned Drive file if the metadata insert fails.
+    await proxyDelete([driveId]).catch(() => {})
     throw error
   }
-  if (onProgress) onProgress(1)
   return data
 }
 
@@ -134,19 +127,9 @@ export async function renameFile(id, name) {
 }
 
 export async function deleteFile(file) {
-  await supabase.storage.from(BUCKET).remove([file.storage_path])
+  await proxyDelete([file.drive_id])
   const { error } = await supabase.from('files').delete().eq('id', file.id)
   if (error) throw error
-}
-
-// Signed URL used to download the user's own file. forceDownload sets the
-// Content-Disposition so the browser saves it instead of navigating.
-export async function getDownloadUrl(file) {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(file.storage_path, DOWNLOAD_TTL, { download: file.name })
-  if (error) throw error
-  return data.signedUrl
 }
 
 // ---------------------------------------------------------------------------
@@ -164,13 +147,10 @@ export async function createShare(file, ownerId) {
     .maybeSingle()
   if (existing) return existing
 
-  // The owner generates a long-lived signed URL now; anonymous visitors reuse
-  // it later via the public shares row. No server code required.
-  const { data: signed, error: sErr } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(file.storage_path, SHARE_TTL, { download: file.name })
-  if (sErr) throw sErr
-
+  // The public shares row maps a token to a Drive file. Knowing the Drive id
+  // grants no access on its own — the file is never shared inside Drive, so only
+  // the proxy (which runs as the Drive owner) can read it. The share page hits
+  // the proxy with the token and gets the bytes back (see Code.gs).
   const expiresAt = new Date(Date.now() + SHARE_TTL * 1000).toISOString()
   const { data, error } = await supabase
     .from('shares')
@@ -180,7 +160,7 @@ export async function createShare(file, ownerId) {
       file_name: file.name,
       mime_type: file.mime_type,
       size: file.size,
-      signed_url: signed.signedUrl,
+      drive_id: file.drive_id,
       expires_at: expiresAt,
     })
     .select()
