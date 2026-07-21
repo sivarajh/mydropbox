@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>myDropbox</title>
+    <!--
+      GitHub Pages serves this file for any unknown path (e.g. a shared link
+      like /mydropbox/share/abc). We stash the requested URL and bounce to the
+      app root, where index.html restores it so React Router can handle it.
+    -->
+    <script>
+      sessionStorage.redirect = location.href;
+      location.replace(location.pathname.split('/').slice(0, 2).join('/') + '/');
+    </script>
+  </head>
+  <body></body>
+</html>

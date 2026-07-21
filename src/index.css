@@ -1,0 +1,381 @@
+:root {
+  --blue: #0061fe;
+  --blue-dark: #0050d0;
+  --bg: #f7f9fc;
+  --card: #ffffff;
+  --text: #1e1e1e;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --danger: #d92d20;
+  --danger-bg: #fef3f2;
+  --notice-bg: #eff6ff;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.center {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.85rem;
+}
+
+/* ---------- Buttons & links ---------- */
+.btn {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover {
+  background: #f2f4f7;
+}
+.btn.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn.primary:hover {
+  background: var(--blue-dark);
+}
+.btn.block {
+  width: 100%;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+}
+.link:hover {
+  background: #eef4ff;
+  text-decoration: underline;
+}
+.link.danger {
+  color: var(--danger);
+}
+.link.danger:hover {
+  background: var(--danger-bg);
+}
+
+/* ---------- Brand ---------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.brand h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+.brand .logo {
+  font-size: 1.8rem;
+}
+.brand.small {
+  margin: 0;
+  font-weight: 600;
+}
+.brand.small .logo {
+  font-size: 1.3rem;
+}
+
+/* ---------- Auth / centered cards ---------- */
+.auth-wrap {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+.auth-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+.auth-card form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+.auth-card label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.auth-card input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+}
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0, 97, 254, 0.12);
+}
+.switch {
+  margin-top: 1.2rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* ---------- Alerts ---------- */
+.alert {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  margin: 0.5rem 0;
+}
+.alert.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.alert.notice {
+  background: var(--notice-bg);
+  color: var(--blue-dark);
+}
+
+/* ---------- App shell ---------- */
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.25rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  position: relative;
+}
+.content.dragging {
+  outline: 3px dashed var(--blue);
+  outline-offset: -12px;
+  border-radius: 16px;
+}
+
+/* ---------- Toolbar ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+.breadcrumbs {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.breadcrumbs a {
+  color: var(--text);
+  text-decoration: none;
+}
+.breadcrumbs a:hover {
+  color: var(--blue);
+}
+.breadcrumbs .sep {
+  color: var(--muted);
+  margin: 0 0.4rem;
+  font-weight: 400;
+}
+
+/* ---------- Listing ---------- */
+.listing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.15rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: #fafbfc;
+}
+.row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.65rem 0;
+  text-align: left;
+  min-width: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.row-main .icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.row-main .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.row-actions {
+  display: flex;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+/* ---------- Empty state ---------- */
+.empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--muted);
+}
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ---------- Drag hint ---------- */
+.drop-hint {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: rgba(0, 97, 254, 0.06);
+  pointer-events: none;
+}
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 10;
+}
+.modal {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 460px;
+}
+.modal h3 {
+  margin-top: 0;
+}
+.copy-row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.25rem;
+}
+.copy-row input {
+  flex: 1;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+.modal-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---------- Share view ---------- */
+.share-view .share-file {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 0;
+}
+.share-view .big-icon {
+  font-size: 2.5rem;
+}
+.share-view .name {
+  font-weight: 600;
+  word-break: break-word;
+}
