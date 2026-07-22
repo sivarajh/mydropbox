@@ -62,13 +62,26 @@ function json(obj) {
 // Auth: confirm the caller is a real, signed-in Supabase user.
 // ---------------------------------------------------------------------------
 function requireUser(token) {
-  if (!token) throw new Error('missing token');
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error(
+      'proxy misconfigured: set SUPABASE_URL and SUPABASE_ANON_KEY in ' +
+        'Project Settings > Script Properties'
+    );
+  }
+  if (!token) throw new Error('not signed in (no token sent)');
   var res = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
     method: 'get',
     headers: { Authorization: 'Bearer ' + token, apikey: SUPABASE_ANON_KEY },
     muteHttpExceptions: true,
   });
-  if (res.getResponseCode() !== 200) throw new Error('unauthorized');
+  if (res.getResponseCode() !== 200) {
+    // Surface Supabase's status so the failure is diagnosable from the response.
+    throw new Error(
+      'auth check failed: Supabase returned ' +
+        res.getResponseCode() +
+        ' — check SUPABASE_URL/ANON_KEY and that the token is valid'
+    );
+  }
   return JSON.parse(res.getContentText());
 }
 
